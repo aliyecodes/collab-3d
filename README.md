@@ -3,17 +3,16 @@
 
 ---
 
-### Screenshots  
+### Screenshots
 
 | Dark Mode | Light Mode |
-|------------|------------|
+|:---------:|:----------:|
 | ![Dark Mode Screenshot](./frontend/public/dark-mode.png) | ![Light Mode Screenshot](./frontend/public/light-mode.png) |
 
-| Project View | Annotation Example | Real Time Chat
-|---------------|--------------------|
-| ![Project View](./frontend/public/project-view.png) | ![Annotation Example](./frontend/public/annotation-view.png) | ![Real Time Chat](./frontend/public/real-time-chat.png)
+| Project View | Annotation Example | Real Time Chat |
+|:------------:|:------------------:|:--------------:|
+| ![Project View](./frontend/public/project-view.png) | ![Annotation Example](./frontend/public/annotation-view.png) | ![Real Time Chat](./frontend/public/real-time-chat.png) |
 
----
 
 ### Live Demo  
 - **Frontend (Vercel):** [https://collab-3d.vercel.app](https://collab-3d.vercel.app)  
