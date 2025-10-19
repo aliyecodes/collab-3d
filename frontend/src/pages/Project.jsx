@@ -77,7 +77,9 @@ export default function Project() {
   const [chatInput, setChatInput] = useState("");
 
   useEffect(() => {
-    const s = io("http://localhost:4000");
+    const s = io(import.meta.env.VITE_SOCKET_URL, {
+      withCredentials: true,
+    });
     setSocket(s);
     s.emit("join", {
       projectId: id,
@@ -233,7 +235,9 @@ export default function Project() {
         <div className="ml-auto flex gap-2">
           <button
             onClick={() => setMode("translate")}
-            className={`btn-neo ${mode === "translate" ? "btn-neo-active" : ""}`}
+            className={`btn-neo ${
+              mode === "translate" ? "btn-neo-active" : ""
+            }`}
           >
             Move
           </button>
@@ -281,7 +285,11 @@ export default function Project() {
                 handleAddAnnotationFromEvent(e);
               }}
             >
-              <hemisphereLight intensity={0.6} color="#bcdcff" groundColor="#0b1220" />
+              <hemisphereLight
+                intensity={0.6}
+                color="#bcdcff"
+                groundColor="#0b1220"
+              />
               <ambientLight intensity={0.35} />
               <pointLight position={[10, 10, 10]} intensity={0.7} />
               <gridHelper args={[20, 20, "#60a5fa", "#334155"]} />
@@ -355,7 +363,9 @@ export default function Project() {
           </div>
 
           <aside
-            className={`panel p-3 flex flex-col h-[72vh] w-full lg:w-[280px] max-w-[92vw] mx-auto lg:mx-0 rounded-2xl bg-gradient-to-br from-white/70 to-slate-100/40 dark:from-slate-900/60 dark:to-slate-800/40 shadow-[0_0_15px_rgba(0,0,0,0.15)] backdrop-blur-md border border-slate-300/40 dark:border-cyan-400/20 transition ${openChat ? "block" : "hidden"} lg:block`}
+            className={`panel p-3 flex flex-col h-[72vh] w-full lg:w-[280px] max-w-[92vw] mx-auto lg:mx-0 rounded-2xl bg-gradient-to-br from-white/70 to-slate-100/40 dark:from-slate-900/60 dark:to-slate-800/40 shadow-[0_0_15px_rgba(0,0,0,0.15)] backdrop-blur-md border border-slate-300/40 dark:border-cyan-400/20 transition ${
+              openChat ? "block" : "hidden"
+            } lg:block`}
           >
             <h2 className="font-orbitron text-sm text-cyan-600 dark:text-cyan-200 mb-2 text-center tracking-widest">
               Real-time Chat
@@ -469,7 +479,11 @@ function AnnotationPin({ a, targetRef, onEdit, onDelete, onFocus }) {
       const world = targetRef.current.localToWorld(local.clone());
       groupRef.current.position.copy(world);
     } else if (Array.isArray(a.position)) {
-      groupRef.current.position.set(a.position[0], a.position[1], a.position[2]);
+      groupRef.current.position.set(
+        a.position[0],
+        a.position[1],
+        a.position[2]
+      );
     }
   });
 
@@ -597,7 +611,11 @@ function UserCameraIndicators({ userViews, me }) {
       <group key={user} position={[x, y, z]}>
         <mesh>
           <sphereGeometry args={[0.06, 16, 16]} />
-          <meshStandardMaterial color="#22d3ee" emissive="#22d3ee" emissiveIntensity={0.35} />
+          <meshStandardMaterial
+            color="#22d3ee"
+            emissive="#22d3ee"
+            emissiveIntensity={0.35}
+          />
         </mesh>
         <Html distanceFactor={12} position={[0.18, 0.18, 0]}>
           <div className="px-2 py-0.5 rounded-full text-xs bg-cyan-500/80 text-white border border-cyan-200/40 shadow">
