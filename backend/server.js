@@ -18,6 +18,7 @@ const DEFAULT_ORIGINS = new Set([
   'http://localhost:5174',
   'http://127.0.0.1:5173',
   'http://127.0.0.1:5174',
+  'https://collab-3d.vercel.app',
 ]);
 const extraOrigin = process.env.CORS_ORIGIN?.split(',').map(s => s.trim()).filter(Boolean) || [];
 extraOrigin.forEach(o => DEFAULT_ORIGINS.add(o));
