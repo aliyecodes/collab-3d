@@ -4,7 +4,7 @@ import { useParams, Link } from "react-router-dom";
 import axios from "axios";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, TransformControls, Html } from "@react-three/drei";
-import { API_BASE } from "../lib/api";
+import { API_BASE, SOCKET_URL } from "../lib/api";
 import { v4 as uuid } from "uuid";
 import { io } from "socket.io-client";
 
@@ -52,7 +52,9 @@ export default function Project() {
             scale: o.scale || [1.8, 1.8, 1.8],
           });
         }
+
         setAnnotations(Array.isArray(s.annotations) ? s.annotations : []);
+        setChat(Array.isArray(s.chat) ? s.chat : []);
       } catch {
         const fromLocal = localStorage.getItem(`scene-${id}`);
         if (fromLocal) {
@@ -66,6 +68,7 @@ export default function Project() {
             });
           }
           setAnnotations(Array.isArray(s.annotations) ? s.annotations : []);
+          setChat(Array.isArray(s.chat) ? s.chat : []);
         }
       }
     })();
@@ -77,19 +80,23 @@ export default function Project() {
   const [chatInput, setChatInput] = useState("");
 
   useEffect(() => {
-    const s = io(import.meta.env.VITE_SOCKET_URL, {
+    const s = io(SOCKET_URL, {
+      transports: ["websocket", "polling"],
       withCredentials: true,
+      path: "/socket.io/",
     });
     setSocket(s);
-    s.emit("join", {
-      projectId: id,
-      user: localStorage.getItem("user") || "Anon",
+
+    s.on("connect", () => {
+      s.emit("join", {
+        projectId: id,
+        user: localStorage.getItem("user") || "Anon",
+      });
     });
 
     const onChat = (payload) => {
       const msg = payload?.message ?? payload;
       if (!msg) return;
-
       setChat((prev) => {
         const exists = prev.some(
           (m) => m.ts === msg.ts && m.user === msg.user && m.text === msg.text
@@ -107,6 +114,16 @@ export default function Project() {
       setCameraState(camera);
     };
 
+    const onObjectUpdate = ({ objectId, transform }) => {
+      if (objectId !== "cube-1" || !transform) return;
+      setCube((prev) => ({
+        ...prev,
+        position: transform.position ?? prev.position,
+        rotation: transform.rotation ?? prev.rotation,
+        scale: transform.scale ?? prev.scale,
+      }));
+    };
+
     const onAnnAdd = (ann) => {
       setAnnotations((prev) => {
         if (prev.some((a) => a.id === ann.id)) return prev;
@@ -116,11 +133,13 @@ export default function Project() {
 
     s.on("chat", onChat);
     s.on("camera", onCamera);
+    s.on("object:update", onObjectUpdate);
     s.on("annotation:add", onAnnAdd);
 
     return () => {
       s.off("chat", onChat);
       s.off("camera", onCamera);
+      s.off("object:update", onObjectUpdate);
       s.off("annotation:add", onAnnAdd);
       s.disconnect();
     };
@@ -131,6 +150,7 @@ export default function Project() {
       camera: cameraState || null,
       objects: [{ id: "cube-1", type: "cube", ...cube }],
       annotations,
+      chat, 
     };
     await axios.put(`${API_BASE}/projects/${id}/scene`, { sceneState });
     localStorage.setItem(`scene-${id}`, JSON.stringify(sceneState));
@@ -178,12 +198,7 @@ export default function Project() {
     const text = chatInput.trim();
     if (!text || !socket) return;
 
-    const msg = {
-      user: me,
-      text,
-      ts: Date.now(),
-    };
-
+    const msg = { user: me, text, ts: Date.now() };
     setChat((prev) => [...prev, msg]);
     socket.emit("chat", { projectId: id, message: msg });
     setChatInput("");
@@ -235,9 +250,7 @@ export default function Project() {
         <div className="ml-auto flex gap-2">
           <button
             onClick={() => setMode("translate")}
-            className={`btn-neo ${
-              mode === "translate" ? "btn-neo-active" : ""
-            }`}
+            className={`btn-neo ${mode === "translate" ? "btn-neo-active" : ""}`}
           >
             Move
           </button>
@@ -285,11 +298,7 @@ export default function Project() {
                 handleAddAnnotationFromEvent(e);
               }}
             >
-              <hemisphereLight
-                intensity={0.6}
-                color="#bcdcff"
-                groundColor="#0b1220"
-              />
+              <hemisphereLight intensity={0.6} color="#bcdcff" groundColor="#0b1220" />
               <ambientLight intensity={0.35} />
               <pointLight position={[10, 10, 10]} intensity={0.7} />
               <gridHelper args={[20, 20, "#60a5fa", "#334155"]} />
@@ -312,6 +321,8 @@ export default function Project() {
                 setCube={setCube}
                 mode={mode}
                 setDragging={setDragging}
+                socket={socket}
+                projectId={id}
               />
 
               {annotations.map((a) => (
@@ -346,12 +357,7 @@ export default function Project() {
                     target: [tgt.x, tgt.y, tgt.z],
                   };
                   setCameraState(payload);
-
-                  socket?.emit("camera", {
-                    projectId: id,
-                    camera: payload,
-                    user: me,
-                  });
+                  socket?.emit("camera", { projectId: id, camera: payload, user: me });
                 }}
               />
 
@@ -412,11 +418,7 @@ export default function Project() {
 
       <footer className="footer">
         © {new Date().getFullYear()} 3D Collab MVP — Built by{" "}
-        <a
-          href="https://github.com/aliyecodes"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
+        <a href="https://github.com/aliyecodes" target="_blank" rel="noopener noreferrer">
           Aliyecodes
         </a>
         .
@@ -426,18 +428,32 @@ export default function Project() {
 }
 
 const SceneCube = forwardRef(function SceneCube(
-  { cube, setCube, mode, setDragging },
+  { cube, setCube, mode, setDragging, socket, projectId },
   ref
 ) {
+  const lastSentRef = useRef(0);
+
+  const emitTransformThrottled = (transform) => {
+    const now = Date.now();
+    if (now - lastSentRef.current < 80) return; 
+    lastSentRef.current = now;
+    socket?.emit("object:update", {
+      projectId,
+      objectId: "cube-1",
+      transform,
+    });
+  };
+
   const handleObjectChange = (e) => {
     const obj = e?.target?.object;
     if (!obj) return;
-    const { position, rotation, scale } = obj;
-    setCube({
-      position: [position.x, position.y, position.z],
-      rotation: [rotation.x, rotation.y, rotation.z],
-      scale: [scale.x, scale.y, scale.z],
-    });
+    const next = {
+      position: [obj.position.x, obj.position.y, obj.position.z],
+      rotation: [obj.rotation.x, obj.rotation.y, obj.rotation.z],
+      scale: [obj.scale.x, obj.scale.y, obj.scale.z],
+    };
+    setCube(next);
+    emitTransformThrottled(next);
   };
 
   return (
@@ -479,11 +495,7 @@ function AnnotationPin({ a, targetRef, onEdit, onDelete, onFocus }) {
       const world = targetRef.current.localToWorld(local.clone());
       groupRef.current.position.copy(world);
     } else if (Array.isArray(a.position)) {
-      groupRef.current.position.set(
-        a.position[0],
-        a.position[1],
-        a.position[2]
-      );
+      groupRef.current.position.set(a.position[0], a.position[1], a.position[2]);
     }
   });
 
@@ -507,9 +519,7 @@ function AnnotationPin({ a, targetRef, onEdit, onDelete, onFocus }) {
           onClick={handleFocus}
           title="Focus camera here"
         >
-          <div className="text-[10px] opacity-70 -mb-0.5">
-            {a.user || "Anon"}
-          </div>
+          <div className="text-[10px] opacity-70 -mb-0.5">{a.user || "Anon"}</div>
           <span className="max-w-[220px] truncate" title={a?.text || ""}>
             {a?.text || ""}
           </span>

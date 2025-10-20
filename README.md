@@ -60,12 +60,31 @@ This project was part of my Full Stack Developer selection task at Designo, wher
 
 ---
 
+### How Real-Time Sync Works
+Each user joins a project room via **Socket.IO**:
+- **join** → connects users to the same project room  
+- **chat** → sends and receives real-time chat messages  
+- **annotation:add** → broadcasts annotation creation and updates  
+- **camera** → shares the live camera position and target between users  
+- **object:update** → synchronizes 3D transformations (move, rotate, scale) in real time  
+
+---
+
 ### Tech Stack  
 **Frontend:** React, Three.js, TailwindCSS  
 **Backend:** Node.js (Express), Socket.IO  
 **Database:** MongoDB (Mongoose ODM)  
 **Hosting:** Vercel (frontend) + Render (backend)  
 **Real-time:** WebSocket via Socket.IO  
+
+---
+
+### Recent Fixes & Improvements
+- Fixed **CORS origin handling** for deployed environments  
+- Added **chat persistence** (messages are now stored in MongoDB)  
+- Added **object:update** event for real-time 3D sync  
+- Improved **debug logs** for Socket.IO connection and synchronization events  
+- Enhanced **stability** across multiple concurrent clients  
 
 ---
 
@@ -117,12 +136,31 @@ Questo progetto faceva parte della mia selezione come Full Stack Developer press
 
 ---
 
+### Come funziona la sincronizzazione in tempo reale
+Ogni utente entra in una stanza del progetto tramite **Socket.IO**:
+- **join** → connette gli utenti alla stessa stanza del progetto  
+- **chat** → invia e riceve messaggi in tempo reale  
+- **annotation:add** → trasmette in tempo reale la creazione e le modifiche delle annotazioni  
+- **camera** → condivide la posizione e il target della camera tra gli utenti  
+- **object:update** → sincronizza in tempo reale i movimenti 3D (move, rotate, scale)  
+
+---
+
 ### Stack Tecnologico  
 **Frontend:** React, Three.js, TailwindCSS  
 **Backend:** Node.js (Express), Socket.IO  
 **Database:** MongoDB (Mongoose)  
 **Hosting:** Vercel (frontend) + Render (backend)  
 **Realtime:** WebSocket con Socket.IO  
+
+---
+
+### Correzioni e miglioramenti recenti
+- Corretto il **CORS origin handling** per gli ambienti di produzione  
+- Aggiunta la **persistenza della chat** (i messaggi vengono ora salvati su MongoDB)  
+- Aggiunto l’evento **object:update** per la sincronizzazione 3D in tempo reale  
+- Migliorati i **log di debug** per la connessione e la sincronizzazione Socket.IO  
+- Migliorata la **stabilità** durante l’uso simultaneo da parte di più utenti  
 
 ---
 

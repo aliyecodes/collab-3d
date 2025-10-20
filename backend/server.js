@@ -136,7 +136,7 @@ app.delete('/api/projects/:id', async (req, res) => {
 
 app.post('/api/uploads', upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'file required' });
-  const url = `/uploads/${req.file.filename}`; 
+  const url = `/uploads/${req.file.filename}`;
   res.status(201).json({ url });
 });
 
@@ -152,10 +152,14 @@ const io = new Server(server, {
 });
 
 io.on('connection', (socket) => {
+  console.log('[io] client connected', socket.id, 'origin:', socket.handshake.headers.origin);
+
   socket.on('join', ({ projectId, user }) => {
     if (!projectId) return;
     socket.join(projectId);
     socket.to(projectId).emit('user-joined', { user });
+    socket.emit('joined', { projectId });
+    console.log('[io] joined room', projectId, 'user:', user, 'sid:', socket.id);
   });
 
   socket.on('chat', async ({ projectId, message }) => {
@@ -171,8 +175,37 @@ io.on('connection', (socket) => {
         { upsert: false }
       );
       io.to(projectId).emit('chat', payload);
+      console.log('[io] chat -> room', projectId, payload);
     } catch (err) {
       console.error('socket chat:', err);
+    }
+  });
+
+  socket.on('object:update', async ({ projectId, objectId, transform }) => {
+    if (!projectId || !objectId || !transform) return;
+
+    socket.to(projectId).emit('object:update', { objectId, transform });
+
+    try {
+      await Project.findByIdAndUpdate(
+        projectId,
+        {
+          $set: {
+            'sceneState.objects': [
+              {
+                id: objectId,
+                type: 'cube',
+                position: transform.position,
+                rotation: transform.rotation,
+                scale: transform.scale,
+              }
+            ]
+          }
+        },
+        { new: false }
+      );
+    } catch (err) {
+      console.error('socket object:update -> db error:', err?.message || err);
     }
   });
 
@@ -198,6 +231,8 @@ io.on('connection', (socket) => {
     }
   });
 });
+
+
 
 const PORT = process.env.PORT || 4000;
 server.listen(PORT, () => console.log('Server + Socket.IO on', PORT));
